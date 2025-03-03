@@ -8,6 +8,9 @@ import json
 from pathlib import Path
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
+# Suppress specific pandas warnings
+warnings.filterwarnings('ignore', category=UserWarning, module='pandas')
+
 def crop_image(original_image):
     offset = 20
     gray = cv2.cvtColor(original_image, cv2.COLOR_BGR2GRAY)
@@ -260,7 +263,7 @@ def generate_error_analysis(model_name, dataset_version, run_folder, output_dir=
             image_pairs = list(zip(fil_df_eval['filename'], fil_df_eval['gt_path'], fil_df_eval['gt'], fil_df_eval['pred']))
             
             # Limit to 10 examples maximum per defect type to avoid too many visualizations
-            show_image_pairs(image_pairs[:10], "notdetect", def_name, model_path, run_folder, fn_output_dir, save_images=True, show_plot=False)
+            show_image_pairs(image_pairs, "notdetect", def_name, model_path, run_folder, fn_output_dir, save_images=True, show_plot=False)
     
     # Generate error pair visualizations for FP cases
     fp_output_dir = os.path.join(output_dir, "false_positives")
@@ -276,7 +279,7 @@ def generate_error_analysis(model_name, dataset_version, run_folder, output_dir=
             image_pairs = list(zip(fil_df_eval['filename'], fil_df_eval['gt_path'], fil_df_eval['pred'], fil_df_eval['gt']))
             
             # Limit to 10 examples maximum per defect type
-            show_image_pairs(image_pairs[:10], "redundant", def_name, model_path, run_folder, fp_output_dir, save_images=True, show_plot=False)
+            show_image_pairs(image_pairs, "redundant", def_name, model_path, run_folder, fp_output_dir, save_images=True, show_plot=False)
     
     print(f"Error analysis complete. Results saved to {output_dir}")
     return output_dir

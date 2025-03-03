@@ -24,15 +24,17 @@ Customize the configuration files to match your evaluation requirements:
 - **config_confidence_thresholds.json**: Set minimum confidence scores per defect type
   ```json
   {
-    "impression": 0.3,
-    "asperity": 0.0,
-    "abriss": 0.25,
-    "einriss": 0.5, 
-    "ausseinriss": 0.2
+    "impression": 0.1,
+    "asperity": 0.1,
+    "abriss": 0.1,
+    "einriss": 0.1, 
+    "ausseinriss": 0.1
   }
   ```
 
 - **config_defect_thresholds.json**: Define size thresholds for each defect by product and camera
+  
+  🚫 Try not to adjust these values to make use different evaluation use the same set of gt labels.
   ```json
   {
     "camera_resolutions": { ... },
@@ -46,7 +48,7 @@ Customize the configuration files to match your evaluation requirements:
     "impression": 1.0,
     "einriss": 1.0,
     "asperity": 1.0,
-    "abriss": 1.25,
+    "abriss": 1.00,
     "ausseinriss": 1.0
   }
   ```

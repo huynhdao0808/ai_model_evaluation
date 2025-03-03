@@ -24,6 +24,10 @@ defect_thresholds = load_config("config_defect_thresholds.json")
 size_offsets = load_config("config_size_offsets.json")
 confidence_thresholds = load_config("config_confidence_thresholds.json")
 
+print(defect_thresholds)
+print(size_offsets)
+print(confidence_thresholds)
+
 # Function to save a JSON config to a file
 def save_config(config, file_path):
     with open(file_path, 'w') as f:

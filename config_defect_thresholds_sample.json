@@ -11,58 +11,58 @@
     "defect_thresholds": {
         "24-06": {
             "impression": {"x": 0.5, "z": 0.5},
-            "einriss": {"x": 3, "z": 0.87},
+            "einriss": {"x": 3, "z": 0.44},
             "asperity": {"x": 0, "z": 0},
-            "abriss": {"x": 3, "z": 0.475},
+            "abriss": {"x": 3, "z": 0.3},
             "ausseinriss": {"x": 0.5, "z": 0.2}
         },
         "24-06PB": {
             "impression": {"x": 0.5, "z": 0.5},
-            "einriss": {"x": 3, "z": 0.87},
+            "einriss": {"x": 3, "z": 0.44},
             "asperity": {"x": 0, "z": 0},
-            "abriss": {"x": 3, "z": 0.475},
+            "abriss": {"x": 3, "z": 0.3},
             "ausseinriss": {"x": 0.5, "z": 0.2}
         },
         "24-09": {
             "impression": {"x": 0.5, "z": 0.5},
-            "einriss": {"x": 3, "z": 0.87},
+            "einriss": {"x": 3, "z": 0.44},
             "asperity": {"x": 0, "z": 0},
-            "abriss": {"x": 3, "z": 0.475},
+            "abriss": {"x": 3, "z": 0.3},
             "ausseinriss": {"x": 0.5, "z": 0.2}
         },
         "24-09AVO": {
             "impression": {"x": 0.5, "z": 0.5},
-            "einriss": {"x": 3, "z": 0.87},
+            "einriss": {"x": 3, "z": 0.44},
             "asperity": {"x": 0, "z": 0},
-            "abriss": {"x": 3, "z": 0.475},
+            "abriss": {"x": 3, "z": 0.3},
             "ausseinriss": {"x": 0.5, "z": 0.2}
         },
         "28-10": {
             "impression": {"x": 0.9, "z": 0.6},
-            "einriss": {"x": 3, "z": 0.87},
+            "einriss": {"x": 3, "z": 0.44},
             "asperity": {"x": 0, "z": 0},
-            "abriss": {"x": 3, "z": 0.475},
+            "abriss": {"x": 3, "z": 0.3},
             "ausseinriss": {"x": 0.9, "z": 0.2}
         },
         "28-12": {
             "impression": {"x": 0.9, "z": 0.6},
-            "einriss": {"x": 3, "z": 0.87},
+            "einriss": {"x": 3, "z": 0.44},
             "asperity": {"x": 0, "z": 0},
-            "abriss": {"x": 3, "z": 0.475},
+            "abriss": {"x": 3, "z": 0.3},
             "ausseinriss": {"x": 0.9, "z": 0.2}
         },
         "30-10": {
             "impression": {"x": 0.9, "z": 0.6},
-            "einriss": {"x": 3, "z": 0.87},
+            "einriss": {"x": 3, "z": 0.44},
             "asperity": {"x": 0, "z": 0},
-            "abriss": {"x": 3, "z": 0.475},
+            "abriss": {"x": 3, "z": 0.3},
             "ausseinriss": {"x": 0.9, "z": 0.2}
         },
         "30-12": {
             "impression": {"x": 0.9, "z": 0.6},
-            "einriss": {"x": 3, "z": 0.87},
+            "einriss": {"x": 3, "z": 0.44},
             "asperity": {"x": 0, "z": 0},
-            "abriss": {"x": 3, "z": 0.475},
+            "abriss": {"x": 3, "z": 0.3},
             "ausseinriss": {"x": 0.9, "z": 0.2}
         }
 

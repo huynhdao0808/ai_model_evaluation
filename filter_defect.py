@@ -68,7 +68,7 @@ def crop_image(image_path):
     return x, x+w, largest_contour
 
 # Function to remove objects smaller than the threshold size
-def remove_small_objects(file_path, xml_file, thresholds, resolution, side, offsets, label_raw_directory, labelcrop_filter_directory, confidence_threshold = None):
+def remove_small_objects(file_path, xml_file, thresholds, resolution, side, offsets, label_raw_directory, label_filter_directory, confidence_threshold = None):
     """
     Remove objects smaller than the threshold size from the XML file based on their bounding box.
     thresholds: dictionary containing class-specific size thresholds
@@ -88,11 +88,13 @@ def remove_small_objects(file_path, xml_file, thresholds, resolution, side, offs
         
         if class_name == "oil":
             objects_to_remove.append(obj)
+            continue
         else:
             if confidence_threshold != None:
                 confidence = float(obj.find('confidence').text)
                 if confidence < confidence_threshold[class_name]:
                     objects_to_remove.append(obj)
+                    continue
         
         # Check if the class is in the thresholds dictionary
         if class_name in thresholds:
@@ -123,6 +125,7 @@ def remove_small_objects(file_path, xml_file, thresholds, resolution, side, offs
                 if outside_saddle:
                     # print(class_name, xml_file)
                     objects_to_remove.append(obj)
+                    continue
                 # # Plotting using Matplotlib
                 # plt.figure(figsize=(6, 6))
                 # image = cv2.imread(file_path)
@@ -161,29 +164,19 @@ def remove_small_objects(file_path, xml_file, thresholds, resolution, side, offs
                     min_width_mm, min_height_mm = thresholds[class_name]['x'], thresholds[class_name]['z']
                     if width_mm*offsets[class_name] < min_width_mm and height_mm*offsets[class_name] < min_height_mm:
                         objects_to_remove.append(obj)
-                    
-                    if class_name == "oil":
-                        objects_to_remove.append(obj)
     
-        else:
-            # print(class_name)
-            if class_name == "ausenriss":
-                obj.find("name").text = "ausseinriss"
     # Remove the small objects from the XML tree
     for obj in objects_to_remove:
-        try:
-            root.remove(obj)
-        except:
-            pass
+        root.remove(obj)
         
-    dest_xml_file_path = os.path.join(labelcrop_filter_directory, xml_file)
+    dest_xml_file_path = os.path.join(label_filter_directory, xml_file)
     # Save the modified XML file
     tree = ET.ElementTree(root)
     tree.write(dest_xml_file_path)
     # print(f"Updated XML file saved: {dest_xml_file_path}")
 
 # Function to process images in the directory
-def process_images_in_directory(image_directory, label_raw_directory, labelcrop_filter_directory, config_data, offsets, confidence_threshold = None):
+def process_images_in_directory(image_directory, label_raw_directory, label_filter_directory, config_data, offsets, confidence_threshold = None):
     
     # Loop through all the files in the directory
     for filename in tqdm(os.listdir(image_directory)):
@@ -215,7 +208,7 @@ def process_images_in_directory(image_directory, label_raw_directory, labelcrop_
             continue  # Skip non-bmp files
         
         label_filename = str(filename).replace("bmp", "xml")
-        remove_small_objects(os.path.join(image_directory, filename), label_filename, defect_threshold, camera_resolution, side, offsets, label_raw_directory, labelcrop_filter_directory, confidence_threshold = confidence_threshold)
+        remove_small_objects(os.path.join(image_directory, filename), label_filename, defect_threshold, camera_resolution, side, offsets, label_raw_directory, label_filter_directory, confidence_threshold = confidence_threshold)
 
 if __name__ == "__main__":
     # Load configurations from JSON files
@@ -225,13 +218,18 @@ if __name__ == "__main__":
     dataset_version = "test1_v1"  # Full folder name of the dataset version
 
     # Create a timestamped result folder
-    timestamp = "20250303_084524"
+    timestamp = "20250303_133638"
     result_folder = f"run_{timestamp}"
 
     # Directories
     image_directory = 'images\\' + dataset_version
     label_gt_raw_directory = 'labels\\' + dataset_version
     base_directory = 'prediction/' + model_name + '/' + result_folder
+    model_directory = 'prediction/' + model_name
+    label_raw_directory = base_directory + '\\labels'
+    result_imagecrop_rawlabel_directory = base_directory + '\\image_unfilter_crop'
+    labelcrop_raw_directory = base_directory + '\\label_xml_unfilter_crop'
+    label_filter_directory = base_directory + '\\label_xml_filter'
     label_gt_filter_directory = base_directory + '\\gt_labels_filtered'
     
     size_offsets = {
@@ -241,5 +239,14 @@ if __name__ == "__main__":
     'abriss': 1,   
     'ausseinriss': 1
     }
+    confidence_thresholds = {
+    "impression": 0.3,
+    "asperity": 0.0,
+    "abriss": 0.25,
+    "einriss": 0.5,
+    "ausseinriss": 0.2
+    }
 
-    process_images_in_directory(image_directory, label_gt_raw_directory, label_gt_filter_directory, defect_thresholds, size_offsets)
+    # Filter small reject base on defect size for prediction labels
+    print("Filtering small reject base on defect size for prediction labels...")
+    process_images_in_directory(image_directory, label_raw_directory, label_filter_directory, defect_thresholds, size_offsets, confidence_thresholds)

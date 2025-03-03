@@ -213,13 +213,13 @@ def evaluate_directory_structure_by_class(base_dir, images_dir, gt_dir, confiden
     precision_recall_by_class = {class_name: {} for class_name in ["impression", "asperity", "abriss", "einriss", "ausseinriss"]}
     
     # Define labels directory and output directory
-    labels_dir = os.path.join(base_dir, 'labels')
+    labels_dir = os.path.join(base_dir, 'label_xml_filter')
     output_dir = os.path.join(base_dir, 'misdetections')
     os.makedirs(output_dir, exist_ok=True)
     
     # Create CSV file for results
-    model = Path(base_dir).name
-    file_path = f"{model}_evaluation.csv"
+    model = os.path.basename(os.path.dirname(base_dir))
+    file_path = os.path.join(base_dir,f"{model}_evaluation.csv")
     if os.path.exists(file_path):
         os.remove(file_path)
         print(f"File '{file_path}' has been deleted.")
@@ -367,19 +367,20 @@ def plot_precision_recall(precision_recall):
     plt.grid(True)
     plt.show()
 
-
-
-
 if __name__ == "__main__":
-    base_directory = "prediction/result_rtmdet_0226"
-    images_directory = "images/dataset_v1"
-    gt_directory = "labels/dataset_v1"
     
-    # Get the current working directory
-    cwd = os.getcwd()
+    model_name = "rtdert_2.0"
+    dataset_version = "test1_v1"  # Full folder name of the dataset version
 
-    # Print the current working directory
-    print(f"Current working directory: {cwd}")
+    # Create a timestamped result folder
+    timestamp = "20250303_084524"
+    result_folder = f"run_{timestamp}"
+
+    # Directories
+    image_directory = 'images\\' + dataset_version
+    base_directory = 'prediction/' + model_name + '/' + result_folder
+    model_directory = 'prediction/' + model_name
+    label_gt_filter_directory = base_directory + '\\gt_labels_filtered'
     
     # Load confidence thresholds
     confidence_thresholds = {
@@ -390,8 +391,9 @@ if __name__ == "__main__":
         "ausseinriss": 0.2
     }
     
-    # Run evaluation
-    precision_recall_data = evaluate_directory_structure_by_class(base_directory, images_directory, gt_directory, confidence_thresholds)
+    # Create result file using filtered ground truth labels
+    print("Creating result file...")
+    precision_recall_data = evaluate_directory_structure_by_class(base_directory, image_directory, label_gt_filter_directory, confidence_thresholds)
     
     # Plot Precision-Recall Curve
     # plot_precision_recall(precision_recall_data)

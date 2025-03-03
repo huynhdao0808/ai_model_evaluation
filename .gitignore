@@ -2,4 +2,14 @@ config_confidence_thresholds.json
 config_defect_thresholds.json
 config_size_offsets.json
 
+images
+!images/.gitkeep
+
+labels
+!labels/.gitkeep
+
+prediction
+!prediction/.gitkeep
+
 .ipynb_checkpoints/
+__pycache__/

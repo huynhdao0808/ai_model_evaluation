@@ -68,7 +68,7 @@ def crop_image(image_path):
     return x, x+w, largest_contour
 
 # Function to remove objects smaller than the threshold size
-def remove_small_objects(file_path, xml_file, thresholds, confidence_threshold, resolution, side, offsets, label_raw_directory, labelcrop_filter_directory,):
+def remove_small_objects(file_path, xml_file, thresholds, resolution, side, offsets, label_raw_directory, labelcrop_filter_directory, confidence_threshold = None):
     """
     Remove objects smaller than the threshold size from the XML file based on their bounding box.
     thresholds: dictionary containing class-specific size thresholds
@@ -85,9 +85,15 @@ def remove_small_objects(file_path, xml_file, thresholds, confidence_threshold, 
     for obj in root.findall("object"):
         # Extract object class name
         class_name = obj.find("name").text
-        confidence = float(obj.find('confidence').text)
-        if class_name == "oil" or confidence < confidence_threshold[class_name]:
+        
+        if class_name == "oil":
             objects_to_remove.append(obj)
+        else:
+            if confidence_threshold != None:
+                confidence = float(obj.find('confidence').text)
+                if confidence < confidence_threshold[class_name]:
+                    objects_to_remove.append(obj)
+        
         # Check if the class is in the thresholds dictionary
         if class_name in thresholds:
             # Extract the bounding box coordinates (xmin, ymin, xmax, ymax)
@@ -153,10 +159,6 @@ def remove_small_objects(file_path, xml_file, thresholds, confidence_threshold, 
                 else:
                     # Get the size threshold for this object class
                     min_width_mm, min_height_mm = thresholds[class_name]['x'], thresholds[class_name]['z']
-                    if "12_30-12_IMG_LOG__CAM_1_20240718_130637_987" in xml_file:
-                        print(width_mm*offsets[class_name], height_mm*offsets[class_name], min_width_mm, min_height_mm)
-                        print(width_mm, height_mm)
-                        print(xmin, ymin, xmax, ymax)
                     if width_mm*offsets[class_name] < min_width_mm and height_mm*offsets[class_name] < min_height_mm:
                         objects_to_remove.append(obj)
                     
@@ -181,7 +183,7 @@ def remove_small_objects(file_path, xml_file, thresholds, confidence_threshold, 
     # print(f"Updated XML file saved: {dest_xml_file_path}")
 
 # Function to process images in the directory
-def process_images_in_directory(image_directory, label_raw_directory, labelcrop_filter_directory, config_data, offsets, confidence_threshold):
+def process_images_in_directory(image_directory, label_raw_directory, labelcrop_filter_directory, config_data, offsets, confidence_threshold = None):
     
     # Loop through all the files in the directory
     for filename in tqdm(os.listdir(image_directory)):
@@ -213,40 +215,31 @@ def process_images_in_directory(image_directory, label_raw_directory, labelcrop_
             continue  # Skip non-bmp files
         
         label_filename = str(filename).replace("bmp", "xml")
-        remove_small_objects(os.path.join(image_directory, filename), label_filename, defect_threshold, confidence_threshold, camera_resolution, side, offsets, label_raw_directory, labelcrop_filter_directory,)
+        remove_small_objects(os.path.join(image_directory, filename), label_filename, defect_threshold, camera_resolution, side, offsets, label_raw_directory, labelcrop_filter_directory, confidence_threshold = confidence_threshold)
 
 if __name__ == "__main__":
-    # Load the JSON configuration from a file
-    config_data = load_config("config_raw.json")
+    # Load configurations from JSON files
+    defect_thresholds = load_config("config_defect_thresholds.json")
 
-    # Specify the directory path containing the image files
-    image_directory = "ok_images\\AL07\\A\\image"
-    label_raw = "ok_images\AL07\A\label"
-    labelcrop_filter_directory = "ok_images\AL07\A\label_crop_filter"
+    model_name = "rtdert_2.0"
+    dataset_version = "test1_v1"  # Full folder name of the dataset version
 
-    # image_directory = "split\\batch_1\\images"
-    # label_raw = "split\\batch_1\\labels_unfilter"
-    # labelcrop_filter_directory = "split\\batch_1\\labels"
+    # Create a timestamped result folder
+    timestamp = "20250303_084524"
+    result_folder = f"run_{timestamp}"
 
-    if not os.path.exists(labelcrop_filter_directory):
-        os.makedirs(labelcrop_filter_directory)
+    # Directories
+    image_directory = 'images\\' + dataset_version
+    label_gt_raw_directory = 'labels\\' + dataset_version
+    base_directory = 'prediction/' + model_name + '/' + result_folder
+    label_gt_filter_directory = base_directory + '\\gt_labels_filtered'
     
     size_offsets = {
-    'impression': 1,  # Green for 'impression'
-    'einriss': 1,     # Blue for 'einriss'
-    'asperity': 1,    # Red for 'asperity'
-    'abriss': 1.25,    # Cyan for 'abriss'
-    'ausseinriss': 1        # Magenta for 'oil'
-    }
-    
-    # Define confidence thresholds per class
-    confidence_thresholds = {
-        "impression": 0.3,
-        "asperity": 0,
-        "abriss": 0.25,
-        "einriss": 0.5,
-        "ausseinriss": 0.2
+    'impression': 1, 
+    'einriss': 1,    
+    'asperity': 1,  
+    'abriss': 1,   
+    'ausseinriss': 1
     }
 
-    # Process all the image files in the directory
-    process_images_in_directory(image_directory, label_raw, labelcrop_filter_directory, config_data, size_offsets, confidence_thresholds)
+    process_images_in_directory(image_directory, label_gt_raw_directory, label_gt_filter_directory, defect_thresholds, size_offsets)

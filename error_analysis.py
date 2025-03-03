@@ -8,9 +8,6 @@ import json
 from pathlib import Path
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
-# Suppress all warnings
-warnings.filterwarnings("ignore")
-
 def crop_image(original_image):
     offset = 20
     gray = cv2.cvtColor(original_image, cv2.COLOR_BGR2GRAY)
@@ -131,7 +128,7 @@ def show_image_pairs(image_pairs, mode, def_name, model_path, run_folder, output
     # Return the figures if showing them (for Jupyter notebook)
     return figures if show_plot else None
 
-def generate_confusion_matrices(df_eval, full_list, classes, results, output_dir, model_name):
+def generate_confusion_matrices(df_eval, full_list, classes, output_dir, model_name, show = False, save = True):
     """
     Generate and save confusion matrices for the evaluation results.
     
@@ -139,10 +136,10 @@ def generate_confusion_matrices(df_eval, full_list, classes, results, output_dir
         df_eval: DataFrame with evaluation results
         full_list: List of all image filenames
         classes: List of defect classes
-        results: Dictionary with precision/recall results
         output_dir: Directory to save output images
         model_name: Name of the model being evaluated
     """
+
     os.makedirs(output_dir, exist_ok=True)
     
     # OVERALL IMAGE LEVEL CONFUSION MATRIX
@@ -171,55 +168,45 @@ def generate_confusion_matrices(df_eval, full_list, classes, results, output_dir
         f.write(f"Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}\n")
     
     # Overall confusion matrix
-    fig1 = plt.figure(figsize=(10, 8))
+    fig, ax = plt.subplots(figsize=(7, 6))  # Create a figure and axes for the plot
     cm = np.array([[tp, fn], [fp, tn]])
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=['Rejected', 'Accepted'])
-    disp.plot(cmap='viridis')
-    plt.title(f'Overall Confusion Matrix\nPrecision: {precision:.2f}, Recall: {recall:.2f}, F1: {f1:.2f}')
-    fig1.savefig(os.path.join(output_dir, "overall_confusion_matrix.png"))
-    plt.close(fig1)
-    
-    # CLASS LEVEL CONFUSION MATRICES
-    fig2 = plt.figure(figsize=(15, 12))
-    
-    # Extract data for all defect types
-    defect_data = {}
-    for defect in classes:
-        if defect in results:
-            metrics = results[defect]
-            tp = metrics.get('tp', 0)
-            fp = metrics.get('fp', 0)
-            fn = metrics.get('fn', 0)
-            tn = len(full_list) - (tp + fp + fn)  # Approximate TN
-            defect_data[defect] = {
-                'tp': tp, 'fp': fp, 'fn': fn, 'tn': tn,
-                'precision': metrics.get('precision', 0),
-                'recall': metrics.get('recall', 0)
-            }
-    
-    # Create confusion matrix per defect type
-    for i, defect in enumerate(classes):
-        if defect in defect_data:
-            data = defect_data[defect]
-            cm = np.array([[data['tp'], data['fn']], [data['fp'], data['tn']]])
-            
-            plt.subplot(2, 3, i+1)
-            disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=['Defect', 'No Defect'])
-            disp.plot(cmap='viridis', ax=plt.gca())
-            
-            plt.title(f"{defect.capitalize()}\nP: {data['precision']:.2f}, R: {data['recall']:.2f}")
-    
-    plt.tight_layout()
-    fig2.savefig(os.path.join(output_dir, "defect_confusion_matrices.png"))
-    plt.close(fig2)
-    
-    # Save per-class metrics to a text file
-    with open(os.path.join(output_dir, "per_class_metrics.txt"), "w") as f:
-        for defect, data in defect_data.items():
-            f.write(f"=== {defect.upper()} ===\n")
-            f.write(f"TP: {data['tp']}, FP: {data['fp']}, FN: {data['fn']}\n")
-            f.write(f"Precision: {data['precision']:.4f}, Recall: {data['recall']:.4f}\n\n")
 
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=['Rejected', 'Accepted'])
+    disp.plot(cmap='viridis', ax=ax)  # Plot the confusion matrix on the created axes
+    plt.title(f'Overall Confusion Matrix\nPrecision: {precision:.2f}, Recall: {recall:.2f}, F1: {f1:.2f}')
+    if save:
+        fig.savefig(os.path.join(output_dir, "overall_confusion_matrix.png"))
+    if show:
+        plt.show()
+    plt.close(fig)
+
+    # CLASS LEVEL CONFUSION MATRIX
+    df_eval_matrix = df_eval.copy()
+    # Replace null values for 'gt' and 'pred' with 'None'
+    df_eval_matrix['gt'] = df_eval_matrix['gt'].fillna('None')
+    df_eval_matrix['pred'] = df_eval_matrix['pred'].fillna('None')
+
+    # Ensure all labels in gt and pred are among the defined classes or 'None'
+    valid_labels = set(classes + ['None'])
+    # assert set(df_eval_matrix['gt']).issubset(valid_labels), "Unexpected values in 'gt'"
+    # assert set(df_eval_matrix['pred']).issubset(valid_labels), "Unexpected values in 'pred'"
+
+    # Calculate the confusion matrix
+    cm = confusion_matrix(df_eval_matrix['gt'], df_eval_matrix['pred'], labels=classes + ['None'])
+    fig, ax = plt.subplots(figsize=(7, 6))  # Create a figure and axes for the plot
+
+    # Display the confusion matrix
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=classes + ['None'])
+    disp.plot(cmap="viridis", xticks_rotation="vertical", ax=ax)
+    disp.ax_.set_title("Confusion Matrix")
+    disp.ax_.set_xlabel("Predicted Label")
+    disp.ax_.set_ylabel("Ground Truth")
+    if save:
+        fig.savefig(os.path.join(output_dir, "class_level_confusion_matrix.png"))
+    if show:
+        plt.show()
+    return "ABC"
+    
 def generate_error_analysis(model_name, dataset_version, run_folder, output_dir=None):
     """
     Generate error analysis visualizations and confusion matrices.
@@ -257,7 +244,7 @@ def generate_error_analysis(model_name, dataset_version, run_folder, output_dir=
     full_list = [f.split(".")[0] for f in file_names if os.path.isfile(os.path.join(image_dir, f))]
     
     # Generate confusion matrices
-    generate_confusion_matrices(df_eval, full_list, classes, results, output_dir, model_name)
+    generate_confusion_matrices(df_eval, full_list, classes, output_dir, model_name)
     
     # Generate error pair visualizations for FN cases
     fn_output_dir = os.path.join(output_dir, "false_negatives")
@@ -296,8 +283,8 @@ def generate_error_analysis(model_name, dataset_version, run_folder, output_dir=
 
 if __name__ == "__main__":
     # Example usage when run directly
-    model_name = "result_rtmdet_0226"
-    dataset_version = "dataset_v1"
+    model_name = "rtdert_2.0"
+    dataset_version = "test1_v1"
     
     # Find the latest run folder
     model_path = f"prediction/{model_name}"

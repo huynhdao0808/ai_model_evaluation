@@ -20,7 +20,7 @@ class_colors = {
 }
 
 # Load configurations from JSON files
-config_data = load_config("config_defect_thresholds.json")
+defect_thresholds = load_config("config_defect_thresholds.json")
 size_offsets = load_config("config_size_offsets.json")
 confidence_thresholds = load_config("config_confidence_thresholds.json")
 
@@ -30,8 +30,8 @@ def save_config(config, file_path):
         json.dump(config, f, indent=4)
 
 # TODO - Update the model name and dataset version here
-model_name = "result_rtmdet_0226"
-dataset_version = "dataset_v1"  # Full folder name of the dataset version
+model_name = "rtdert_2.0"
+dataset_version = "test1_v1"  # Full folder name of the dataset version
 
 # Create a timestamped result folder
 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -45,7 +45,7 @@ model_directory = 'prediction/' + model_name
 label_raw_directory = base_directory + '\\labels'
 result_imagecrop_rawlabel_directory = base_directory + '\\image_unfilter_crop'
 labelcrop_raw_directory = base_directory + '\\label_xml_unfilter_crop'
-labelcrop_filter_directory = base_directory + '\\label_xml_filter_crop'
+label_filter_directory = base_directory + '\\label_xml_filter'
 label_gt_filter_directory = base_directory + '\\gt_labels_filtered'
 
 # Create the result folder and copy the configuration files
@@ -54,7 +54,7 @@ config_folder = os.path.join(base_directory, 'configs')
 os.makedirs(config_folder, exist_ok=True)
 
 # Save current configurations to the result folder
-save_config(config_data, os.path.join(config_folder, 'config_defect_thresholds.json'))
+save_config(defect_thresholds, os.path.join(config_folder, 'config_defect_thresholds.json'))
 save_config(size_offsets, os.path.join(config_folder, 'config_size_offsets.json'))
 save_config(confidence_thresholds, os.path.join(config_folder, 'config_confidence_thresholds.json'))
 
@@ -62,7 +62,7 @@ save_config(confidence_thresholds, os.path.join(config_folder, 'config_confidenc
 os.makedirs(label_raw_directory, exist_ok=True)
 os.makedirs(result_imagecrop_rawlabel_directory, exist_ok=True)
 os.makedirs(labelcrop_raw_directory, exist_ok=True)
-os.makedirs(labelcrop_filter_directory, exist_ok=True)
+os.makedirs(label_filter_directory, exist_ok=True)
 os.makedirs(label_gt_filter_directory, exist_ok=True)
 
 # Copy prediction XML files to the run folder
@@ -87,16 +87,16 @@ process_images_in_folder(image_directory, label_raw_directory, result_imagecrop_
 
 # Filter small reject base on defect size for prediction labels
 print("Filtering small reject base on defect size for prediction labels...")
-process_images_in_directory(image_directory, label_raw_directory, labelcrop_filter_directory, config_data, size_offsets, confidence_thresholds)
+process_images_in_directory(image_directory, label_raw_directory, label_filter_directory, defect_thresholds, size_offsets, confidence_thresholds)
 
 # Filter small reject base on defect size for ground truth labels
 print("Filtering small reject base on defect size for ground truth labels...")
-process_images_in_directory(image_directory, label_gt_raw_directory, label_gt_filter_directory, config_data, size_offsets, {
-    "impression": 0,
-    "asperity": 0,
-    "abriss": 0,
-    "einriss": 0,
-    "ausseinriss": 0
+process_images_in_directory(image_directory, label_gt_raw_directory, label_gt_filter_directory, defect_thresholds, {
+    "impression": 1.0,
+    "einriss": 1.0,
+    "asperity": 1.0,
+    "abriss": 1.0,
+    "ausseinriss": 1.0
 })
 
 # Create result file using filtered ground truth labels

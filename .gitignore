@@ -2,13 +2,13 @@ config_confidence_thresholds.json
 config_defect_thresholds.json
 config_size_offsets.json
 
-images
+images/*
 !images/.gitkeep
 
-labels
+labels/*
 !labels/.gitkeep
 
-prediction
+prediction/*
 !prediction/.gitkeep
 
 .ipynb_checkpoints/

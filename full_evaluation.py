@@ -2,6 +2,8 @@ import os
 import shutil
 import datetime
 import json
+import argparse
+import glob
 from draw_bndbox import process_images_in_folder
 from filter_defect import process_images_in_directory
 from filter_defect import load_config
@@ -19,6 +21,11 @@ class_colors = {
     'oil': (255, 0, 255)        # Magenta for 'oil'
 }
 
+# Parse command line arguments
+parser = argparse.ArgumentParser(description='Run full evaluation pipeline for defect detection')
+parser.add_argument('--same-gt', action='store_true', help='Use ground truth from previous run')
+args = parser.parse_args()
+
 # Load configurations from JSON files
 defect_thresholds = load_config("config_defect_thresholds.json")
 size_offsets = load_config("config_size_offsets.json")
@@ -27,6 +34,21 @@ confidence_thresholds = load_config("config_confidence_thresholds.json")
 print(defect_thresholds)
 print(size_offsets)
 print(confidence_thresholds)
+
+# Function to find latest run folder
+def find_latest_full_run(model_dir):
+    run_folders = glob.glob(os.path.join(model_dir, 'run_*'))
+    if not run_folders:
+        return None
+    # Filter folders that contain the specified subfolder
+    valid_folders = [folder for folder in run_folders if os.path.isdir(os.path.join(folder, "result_imagecrop_rawlabel_directory"))]
+    
+    if not valid_folders:
+        return None
+    
+    # Sort by creation time (newest first)
+    valid_folders.sort(key=os.path.getctime, reverse=True)
+    return os.path.basename(valid_folders[0])
 
 # Function to save a JSON config to a file
 def save_config(config, file_path):
@@ -41,16 +63,30 @@ dataset_version = "test1_v1"  # Full folder name of the dataset version
 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 result_folder = f"run_{timestamp}"
 
+# Find the latest run if using --same-gt
+last_run_folder = None
+if args.same_gt:
+    last_run_folder = find_latest_full_run(f"prediction/{model_name}")
+    if not last_run_folder:
+        print("Warning: No previous run found. Will create new ground truth labels.")
+    else:
+        print(f"Using ground truth from previous run: {last_run_folder}")
+
 # Directories
 image_directory = 'images\\' + dataset_version
 label_gt_raw_directory = 'labels\\' + dataset_version
 base_directory = 'prediction/' + model_name + '/' + result_folder
 model_directory = 'prediction/' + model_name
-label_raw_directory = base_directory + '\\labels'
+label_raw_directory = model_directory + '\\labels'
 result_imagecrop_rawlabel_directory = base_directory + '\\image_unfilter_crop'
 labelcrop_raw_directory = base_directory + '\\label_xml_unfilter_crop'
 label_filter_directory = base_directory + '\\label_xml_filter'
 label_gt_filter_directory = base_directory + '\\gt_labels_filtered'
+
+# Set previous run directory if using --same-gt
+prev_run_directory = None
+if last_run_folder:
+    prev_run_directory = 'prediction/' + model_name + '/' + last_run_folder
 
 # Create the result folder and copy the configuration files
 os.makedirs(base_directory, exist_ok=True)
@@ -63,21 +99,10 @@ save_config(size_offsets, os.path.join(config_folder, 'config_size_offsets.json'
 save_config(confidence_thresholds, os.path.join(config_folder, 'config_confidence_thresholds.json'))
 
 # Create directories for processing
-os.makedirs(label_raw_directory, exist_ok=True)
 os.makedirs(result_imagecrop_rawlabel_directory, exist_ok=True)
 os.makedirs(labelcrop_raw_directory, exist_ok=True)
 os.makedirs(label_filter_directory, exist_ok=True)
 os.makedirs(label_gt_filter_directory, exist_ok=True)
-
-# Copy prediction XML files to the run folder
-print("Copying prediction files to the run folder...")
-if os.path.exists(os.path.join(model_directory, 'labels')):
-    for file in os.listdir(os.path.join(model_directory, 'labels')):
-        if file.endswith('.xml'):
-            shutil.copy(
-                os.path.join(model_directory, 'labels', file),
-                os.path.join(label_raw_directory, file)
-            )
 
 # Replace classname in case of mistake
 old_class_name = 'ausenriss'  # Class name to be replaced
@@ -85,23 +110,33 @@ new_class_name = 'ausseinriss'  # New class name
 print("Checking and correcting class names...")
 update_class_names_in_directory(label_raw_directory, old_class_name, new_class_name)
 
-# Draw all bounding boxes to the images (include all pre-filter)
-print("Drawing raw label bounding boxes on the images...")
-process_images_in_folder(image_directory, label_raw_directory, result_imagecrop_rawlabel_directory, labelcrop_raw_directory, class_colors)
+# Filter small reject base on defect size for ground truth labels
+if args.same_gt and prev_run_directory and os.path.exists(os.path.join(prev_run_directory, 'result_imagecrop_rawlabel_directory')):
+    prev_gt_dir = os.path.join(prev_run_directory, 'result_imagecrop_rawlabel_directory')
+    result_imagecrop_rawlabel_directory = prev_gt_dir
+else:
+    # Draw all bounding boxes to the images (include all pre-filter)
+    print("Drawing raw label bounding boxes on the images...")
+    process_images_in_folder(image_directory, label_raw_directory, result_imagecrop_rawlabel_directory, labelcrop_raw_directory, class_colors)
 
 # Filter small reject base on defect size for prediction labels
 print("Filtering small reject base on defect size for prediction labels...")
 process_images_in_directory(image_directory, label_raw_directory, label_filter_directory, defect_thresholds, size_offsets, confidence_thresholds)
 
 # Filter small reject base on defect size for ground truth labels
-print("Filtering small reject base on defect size for ground truth labels...")
-process_images_in_directory(image_directory, label_gt_raw_directory, label_gt_filter_directory, defect_thresholds, {
-    "impression": 1.0,
-    "einriss": 1.0,
-    "asperity": 1.0,
-    "abriss": 1.0,
-    "ausseinriss": 1.0
-})
+if args.same_gt and prev_run_directory and os.path.exists(os.path.join(prev_run_directory, 'gt_labels_filtered')):
+    prev_gt_dir = os.path.join(prev_run_directory, 'gt_labels_filtered')
+    label_gt_filter_directory = prev_gt_dir
+else:
+    # Generate new ground truth labels
+    print("Filtering small reject base on defect size for ground truth labels...")
+    process_images_in_directory(image_directory, label_gt_raw_directory, label_gt_filter_directory, defect_thresholds, {
+        "impression": 1.0,
+        "einriss": 1.0,
+        "asperity": 1.0,
+        "abriss": 1.0,
+        "ausseinriss": 1.0
+    })
 
 # Create result file using filtered ground truth labels
 print("Creating result file...")

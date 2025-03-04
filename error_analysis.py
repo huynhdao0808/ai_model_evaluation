@@ -9,7 +9,7 @@ from pathlib import Path
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
 # Suppress specific pandas warnings
-warnings.filterwarnings('ignore', category=UserWarning, module='pandas')
+warnings.simplefilter(action="ignore", category=pd.errors.SettingWithCopyWarning)
 
 def crop_image(original_image):
     offset = 20
@@ -80,15 +80,6 @@ def show_image_pairs(image_pairs, mode, def_name, model_path, run_folder, output
                     img1_path = os.path.join(misdetections_path, file_name)
                     break
         
-        # If not found in current run, try the model's general misdetection folder
-        if not img1_path:
-            model_misdetections = f"{model_path}/misdetections"
-            if os.path.exists(model_misdetections):
-                for file_name in os.listdir(model_misdetections):
-                    if filename in file_name:
-                        img1_path = os.path.join(model_misdetections, file_name)
-                        break
-        
         # If still not found, use the original image
         if not img1_path or not os.path.exists(img1_path):
             print(f"Warning: Misdetection image not found for {filename}, using original image")
@@ -96,6 +87,7 @@ def show_image_pairs(image_pairs, mode, def_name, model_path, run_folder, output
             
         # Check if the second image exists
         if not os.path.exists(img2_path):
+            print(img1_path)
             print(f"Error: Image not found -> {img2_path}")
             plt.close(fig_each)
             continue
@@ -210,7 +202,7 @@ def generate_confusion_matrices(df_eval, full_list, classes, output_dir, model_n
         plt.show()
     return "ABC"
     
-def generate_error_analysis(model_name, dataset_version, run_folder, output_dir=None):
+def generate_error_analysis(model_name, dataset_version, run_folder, imagecrop_rawlabel_directory, output_dir=None):
     """
     Generate error analysis visualizations and confusion matrices.
     
@@ -232,6 +224,7 @@ def generate_error_analysis(model_name, dataset_version, run_folder, output_dir=
     
     # Load evaluation data
     df_eval = pd.read_csv(result_file)
+    df_eval['filename'] = df_eval['filename'].str.replace(".bmp", "jpg")
     
     # Load configurations
     config_folder = os.path.join(run_path, "configs")
@@ -258,7 +251,7 @@ def generate_error_analysis(model_name, dataset_version, run_folder, output_dir=
         fil_df_eval = df_eval[(df_eval['gt']==def_name) & (df_eval['eval']=="FN") & (df_eval['pred'].isnull())]
             
         if fil_df_eval.shape[0] != 0:
-            fil_df_eval['gt_path'] = f"{run_path}/image_unfilter_crop/" + fil_df_eval['filename'] + ".bmp"
+            fil_df_eval['gt_path'] = imagecrop_rawlabel_directory+ "/" + fil_df_eval['filename'] + ".jpg"
             fil_df_eval = fil_df_eval.sort_values("filename")
             image_pairs = list(zip(fil_df_eval['filename'], fil_df_eval['gt_path'], fil_df_eval['gt'], fil_df_eval['pred']))
             
@@ -274,7 +267,7 @@ def generate_error_analysis(model_name, dataset_version, run_folder, output_dir=
         fil_df_eval = df_eval[(df_eval['pred']==def_name) & (df_eval['eval']=="FP") & (df_eval['gt'].isnull())]
             
         if fil_df_eval.shape[0] != 0:
-            fil_df_eval['gt_path'] = f"{run_path}/image_unfilter_crop/" + fil_df_eval['filename'] + ".bmp"
+            fil_df_eval['gt_path'] = imagecrop_rawlabel_directory+ "/" + fil_df_eval['filename'] + ".jpg"
             fil_df_eval = fil_df_eval.sort_values("filename")
             image_pairs = list(zip(fil_df_eval['filename'], fil_df_eval['gt_path'], fil_df_eval['pred'], fil_df_eval['gt']))
             

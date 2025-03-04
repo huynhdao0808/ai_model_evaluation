@@ -53,10 +53,9 @@ def crop_xml_label(xml_path, crop_coords):
 
     return tree
 
-def draw_bounding_box(image, xml_path, class_colors):
+def draw_bounding_box(image, xml_tree, class_colors):
     """Draw bounding boxes from XML labels onto the image with different colors for each class."""
-    tree = ET.parse(xml_path)
-    root = tree.getroot()
+    root = xml_tree.getroot()
     
     offset = 0
     for obj in root.findall('object'):
@@ -86,7 +85,7 @@ def draw_bounding_box(image, xml_path, class_colors):
 
     return image
 
-def process_images_in_folder(image_folder, xml_folder, output_image_folder, output_xml_folder, class_colors):
+def process_images_in_folder(image_folder, xml_folder, output_image_folder, class_colors):
     """Process all images and their XML labels in a folder."""
     for filename in tqdm.tqdm(os.listdir(image_folder)):
         if filename.endswith(".jpg") or filename.endswith(".bmp"):
@@ -100,12 +99,11 @@ def process_images_in_folder(image_folder, xml_folder, output_image_folder, outp
             
             # Crop the XML label
             cropped_xml_tree = crop_xml_label(xml_path, crop_coords)
-            cropped_xml_path = os.path.join(output_xml_folder, filename.replace('.jpg', '.xml').replace('.bmp', '.xml'))
-            cropped_xml_tree.write(cropped_xml_path)
             
             # Draw bounding boxes on the cropped image
-            final_image = draw_bounding_box(cropped_image, cropped_xml_path, class_colors)
+            final_image = draw_bounding_box(cropped_image, cropped_xml_tree, class_colors)
             
+            filename = filename.replace('.bmp', '.jpg')
             # Save the final cropped image with bounding boxes
             output_image_path = os.path.join(output_image_folder, filename)
             cv2.imwrite(output_image_path, final_image)

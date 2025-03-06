@@ -72,6 +72,7 @@ def show_image_pairs(image_pairs, mode, def_name, model_path, run_folder, output
         
         # Try to find the misdetection image in the current run folder
         misdetections_path = f"{model_path}/{run_folder}/misdetections"
+        label_filter_path = f"{model_path}/{run_folder}"+'\\image_filter_crop'
         img1_path = None
         
         if os.path.exists(misdetections_path):
@@ -91,24 +92,38 @@ def show_image_pairs(image_pairs, mode, def_name, model_path, run_folder, output
             print(f"Error: Image not found -> {img2_path}")
             plt.close(fig_each)
             continue
+        
+        img3_path = os.path.join(label_filter_path, filename + ".jpg")
+        # Check if the thrid image exists
+        if not os.path.exists(img3_path):
+            print(img1_path)
+            print(f"Error: Image not found -> {img3_path}")
+            plt.close(fig_each)
+            continue
             
         # Load and process images
         img1 = cv2.cvtColor(cv2.imread(img1_path), cv2.COLOR_BGR2RGB)
         img1 = crop_image(img1)
         img2 = cv2.cvtColor(cv2.imread(img2_path), cv2.COLOR_BGR2RGB)
+        img3 = cv2.cvtColor(cv2.imread(img3_path), cv2.COLOR_BGR2RGB)
         
         if mode == "TP":
             img1 = cv2.cvtColor(cv2.imread(img2_path), cv2.COLOR_BGR2RGB)
         
-        # Create 2 subplots
-        plt.subplot(1, 2, 1)
-        plt.title(f"{filename} {mode} {pred}")
+        # Create 3 subplots
+        plt.subplot(1, 3, 1)
+        plt.title(f"{filename} GT {gt}")
         plt.imshow(img1)
         plt.axis('off')
         
-        plt.subplot(1, 2, 2)
+        plt.subplot(1, 3, 2)
         plt.title(f"Output")
         plt.imshow(img2)
+        plt.axis('off')
+        
+        plt.subplot(1, 3, 3)
+        plt.title(f"Filtered")
+        plt.imshow(img3)
         plt.axis('off')
         
         # Save the error pair image if requested
@@ -200,9 +215,8 @@ def generate_confusion_matrices(df_eval, full_list, classes, output_dir, model_n
         fig.savefig(os.path.join(output_dir, "class_level_confusion_matrix.png"))
     if show:
         plt.show()
-    return "ABC"
     
-def generate_error_analysis(model_name, dataset_version, run_folder, imagecrop_rawlabel_directory, output_dir=None):
+def generate_error_analysis(model_name, dataset_version, run_folder, output_dir=None):
     """
     Generate error analysis visualizations and confusion matrices.
     
@@ -251,7 +265,7 @@ def generate_error_analysis(model_name, dataset_version, run_folder, imagecrop_r
         fil_df_eval = df_eval[(df_eval['gt']==def_name) & (df_eval['eval']=="FN") & (df_eval['pred'].isnull())]
             
         if fil_df_eval.shape[0] != 0:
-            fil_df_eval['gt_path'] = imagecrop_rawlabel_directory+ "/" + fil_df_eval['filename'] + ".jpg"
+            fil_df_eval['gt_path'] = f"{model_path}/{run_folder}"+"\\image_unfilter_crop"+ "/" + fil_df_eval['filename'] + ".jpg"
             fil_df_eval = fil_df_eval.sort_values("filename")
             image_pairs = list(zip(fil_df_eval['filename'], fil_df_eval['gt_path'], fil_df_eval['gt'], fil_df_eval['pred']))
             
@@ -267,7 +281,7 @@ def generate_error_analysis(model_name, dataset_version, run_folder, imagecrop_r
         fil_df_eval = df_eval[(df_eval['pred']==def_name) & (df_eval['eval']=="FP") & (df_eval['gt'].isnull())]
             
         if fil_df_eval.shape[0] != 0:
-            fil_df_eval['gt_path'] = imagecrop_rawlabel_directory+ "/" + fil_df_eval['filename'] + ".jpg"
+            fil_df_eval['gt_path'] = f"{model_path}/{run_folder}"+"\\image_unfilter_crop"+ "/" + fil_df_eval['filename'] + ".jpg"
             fil_df_eval = fil_df_eval.sort_values("filename")
             image_pairs = list(zip(fil_df_eval['filename'], fil_df_eval['gt_path'], fil_df_eval['pred'], fil_df_eval['gt']))
             
@@ -280,7 +294,7 @@ def generate_error_analysis(model_name, dataset_version, run_folder, imagecrop_r
 if __name__ == "__main__":
     # Example usage when run directly
     model_name = "rtdert_2.0"
-    dataset_version = "test1_v1"
+    dataset_version = "test1_v1.1"
     
     # Find the latest run folder
     model_path = f"prediction/{model_name}"

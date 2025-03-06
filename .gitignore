@@ -11,5 +11,8 @@ labels/*
 prediction/*
 !prediction/.gitkeep
 
+test/*
+!test/.gitkeep
+
 .ipynb_checkpoints/
 __pycache__/

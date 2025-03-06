@@ -65,7 +65,9 @@ def crop_image(image_path):
     w = min(image.shape[1] - x, w + 2 * offset)
     h = min(image.shape[0] - y, h + 2 * offset)
     
-    return x, x+w, largest_contour
+    saddle_y = y+h/2
+    
+    return x, x+w, largest_contour, saddle_y
 
 # Function to remove objects smaller than the threshold size
 def remove_small_objects(file_path, xml_file, thresholds, resolution, side, offsets, label_raw_directory, label_filter_directory, confidence_threshold = None):
@@ -76,7 +78,7 @@ def remove_small_objects(file_path, xml_file, thresholds, resolution, side, offs
     """
     xml_file_path = os.path.join(label_raw_directory, xml_file)
     if not os.path.exists(xml_file_path):
-        # print(f'{xml_file_path} not exist')
+        print(f'{xml_file_path} not exist')
         return
     root = load_xml_label(xml_file_path)
     
@@ -109,7 +111,7 @@ def remove_small_objects(file_path, xml_file, thresholds, resolution, side, offs
                 # Calculate object size in mm
                 width_mm, height_mm = calculate_object_size_in_mm((xmin, ymin, xmax, ymax), resolution)
                 
-                x, x_w, saddle_area = crop_image(file_path)
+                x, x_w, saddle_area, saddle_surface_y = crop_image(file_path)
                 # image = cv2.imread(file_path)
                 # x, x_w = 0, image.shape[1]
 
@@ -126,26 +128,59 @@ def remove_small_objects(file_path, xml_file, thresholds, resolution, side, offs
                     # print(class_name, xml_file)
                     objects_to_remove.append(obj)
                     continue
-                # # Plotting using Matplotlib
-                # plt.figure(figsize=(6, 6))
-                # image = cv2.imread(file_path)
-                # plt.imshow(image, cmap='gray')  # Show the image in grayscale
-                # contour = saddle_area  # Assume there's only one contour
-
-                # # Draw the contour using plt.plot
-                # for c in contour:
-                #     plt.plot(c[0][0], c[0][1], marker='o', color='red')  # Plot each point of the contour
                 
-                # # Draw the bounding box (rectangle) around the contour
-                # plt.gca().add_patch(plt.Rectangle((xmin, ymin), xmax-xmin, ymax-ymin, linewidth=2, edgecolor='blue', facecolor='none'))  # Blue bounding box
+                if outside_saddle:
+                    objects_to_remove.append(obj)
+                    continue
+                
+                # Check if the einriss defect is above or below the saddle surface, then reassign the class name to abriss or impression
+                below_saddle = False
+                above_saddle = False
+                outside_saddle = False
+                
+                if class_name == "einriss":
+                    # Check each corner of the bounding box
+                    for point in corners:
+                        px, py = point
+                        result = cv2.pointPolygonTest(saddle_area, (px, py), False)
+                        if result <= 0:  # Outsize the contour
+                            outside_saddle = True
+                            if py > saddle_surface_y:  # Assuming saddle_surface_y is the y-coordinate of the saddle surface
+                                below_saddle = True
+                                obj.find("name").text = "impression"
+                            if py < saddle_surface_y:
+                                above_saddle = True
+                                obj.find("name").text = "abriss"
+                            break
+                    
+                    # if  ("002950_005" in xml_file_path):
+                    #     # Plotting using Matplotlib
+                    #     plt.figure(figsize=(6, 6))
+                    #     image = cv2.imread(file_path)
+                    #     plt.imshow(image, cmap='gray')  # Show the image in grayscale
+                    #     contour = saddle_area  # Assume there's only one contour
 
-                # # Alternatively, if you want to draw the filled contour, you can use plt.fill:
-                # # contour = np.array(contour)  # Ensure it's in the right shape (Nx2)
-                # # plt.fill(contour[:, 0], contour[:, 1], color='red', alpha=0.3)  # Fill contour with red color
+                    #     # Draw the contour using plt.plot
+                    #     for c in contour:
+                    #         plt.plot(c[0][0], c[0][1], color='red')  # Plot each point of the contour
+                        
+                    #     # Draw the bounding box (rectangle) around the contour
+                    #     plt.gca().add_patch(plt.Rectangle((xmin, ymin), xmax-xmin, ymax-ymin, linewidth=2, edgecolor='blue', facecolor='none'))  # Blue bounding box
 
-                # plt.title("Contour Drawing")
-                # plt.axis('off')  # Hide axes for better visualization
-                # plt.show()
+                    #     # Alternatively, if you want to draw the filled contour, you can use plt.fill:
+                    #     contour = np.array(contour)  # Ensure it's in the right shape (Nx2)
+                    #     reshaped_contour = contour.reshape(-1, 2)  # Reshape to (N, 2)
+                    #     plt.fill(reshaped_contour[:, 0], reshaped_contour[:, 1], color='red', alpha=0.3)  # Fill contour with red color
+
+                    #     # Add text labels for "impression" or "abriss"
+                    #     if below_saddle:
+                    #         plt.text(xmin, ymin - 10, "impression", color='green', fontsize=12, weight='bold')
+                    #     if above_saddle:
+                    #         plt.text(xmin, ymin - 30, "abriss", color='yellow', fontsize=12, weight='bold')
+                        
+                    #     plt.title("Contour Drawing")
+                    #     plt.axis('off')  # Hide axes for better visualization
+                    #     plt.show()
                 
                 # If defect in the outside of saddle, It would be ausseinriss
                 if side == "right":
@@ -157,12 +192,12 @@ def remove_small_objects(file_path, xml_file, thresholds, resolution, side, offs
                     # Get the size threshold for this object class
                     min_width_mm, min_height_mm = thresholds["ausseinriss"]['x'], thresholds["ausseinriss"]['z']
                     # If the object is smaller than the threshold, mark it for removal
-                    if width_mm*offsets[class_name] < min_width_mm and height_mm*offsets[class_name] < min_height_mm:
+                    if width_mm*offsets[obj.find("name").text] < min_width_mm and height_mm*offsets[obj.find("name").text] < min_height_mm:
                         objects_to_remove.append(obj)
                 else:
                     # Get the size threshold for this object class
-                    min_width_mm, min_height_mm = thresholds[class_name]['x'], thresholds[class_name]['z']
-                    if width_mm*offsets[class_name] < min_width_mm and height_mm*offsets[class_name] < min_height_mm:
+                    min_width_mm, min_height_mm = thresholds[obj.find("name").text]['x'], thresholds[obj.find("name").text]['z']
+                    if width_mm*offsets[obj.find("name").text] < min_width_mm and height_mm*offsets[obj.find("name").text] < min_height_mm:
                         objects_to_remove.append(obj)
     
     # Remove the small objects from the XML tree
@@ -215,18 +250,17 @@ if __name__ == "__main__":
     defect_thresholds = load_config("config_defect_thresholds.json")
 
     model_name = "rtdert_2.0"
-    dataset_version = "test1_v1"  # Full folder name of the dataset version
+    dataset_version = "test1_v1.1"  # Full folder name of the dataset version
 
     # Create a timestamped result folder
-    timestamp = "20250303_133638"
-    result_folder = f"run_{timestamp}"
+    result_folder = "run_20250306_224555"
 
     # Directories
     image_directory = 'images\\' + dataset_version
     label_gt_raw_directory = 'labels\\' + dataset_version
     base_directory = 'prediction/' + model_name + '/' + result_folder
     model_directory = 'prediction/' + model_name
-    label_raw_directory = base_directory + '\\labels'
+    label_raw_directory = model_directory + '\\labels'
     result_imagecrop_rawlabel_directory = base_directory + '\\image_unfilter_crop'
     labelcrop_raw_directory = base_directory + '\\label_xml_unfilter_crop'
     label_filter_directory = base_directory + '\\label_xml_filter'

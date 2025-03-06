@@ -58,7 +58,7 @@ def save_config(config, file_path):
 
 # TODO - Update the model name and dataset version here
 model_name = "rtdert_2.0"
-dataset_version = "test1_v1"  # Full folder name of the dataset version
+dataset_version = "test1_v1.1"  # Full folder name of the dataset version
 
 # Create a timestamped result folder
 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -80,6 +80,7 @@ base_directory = 'prediction/' + model_name + '/' + result_folder
 model_directory = 'prediction/' + model_name
 label_raw_directory = model_directory + '\\labels'
 imagecrop_rawlabel_directory = base_directory + '\\image_unfilter_crop'
+imagecrop_filterlabel_directory = base_directory + '\\image_filter_crop'
 label_filter_directory = base_directory + '\\label_xml_filter'
 label_gt_filter_directory = base_directory + '\\gt_labels_filtered'
 
@@ -141,9 +142,14 @@ else:
     print("Drawing raw label bounding boxes on the images...")
     process_images_in_folder(image_directory, label_raw_directory, imagecrop_rawlabel_directory, class_colors)
 
+# Draw all bounding boxes to the images (include all filter)
+os.makedirs(imagecrop_filterlabel_directory, exist_ok=True)
+print("Drawing filter label bounding boxes on the images...")
+process_images_in_folder(image_directory, label_filter_directory, imagecrop_filterlabel_directory, class_colors)
+
 # Generate error analysis visualizations and confusion matrices
 print("Generating error analysis and confusion matrices...")
-analysis_dir = generate_error_analysis(model_name, dataset_version, result_folder, imagecrop_rawlabel_directory)
+analysis_dir = generate_error_analysis(model_name, dataset_version, result_folder)
 
 print(f"\nEvaluation complete! Results saved to: {base_directory}")
 print(f"Configuration files saved to: {config_folder}")
